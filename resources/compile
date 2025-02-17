@@ -1,0 +1,4 @@
+#!/bin/bash
+
+./glslc ./shaders/triangle.frag -o ./shaders/out/triangle.frag.spv
+./glslc ./shaders/triangle.vert -o ./shaders/out/triangle.vert.spv

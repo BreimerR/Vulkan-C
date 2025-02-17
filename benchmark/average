@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Replace "your_app_name" with the name of your application
+APP_NAME=$1
+SAMPLE_INTERVAL=1  # Sampling interval in seconds
+SAMPLES=$2         # Number of samples to take
+
+total_memory=0
+total_cpu=0
+
+for ((i=1; i<=SAMPLES; i++)); do
+    memory_usage=$(top -b -n 1 -p $(pgrep -d, "$APP_NAME") | awk '/^ / {sum+=$6} END {print sum/1024}')
+    echo "$total_memory + $memory_usage"
+    total_memory=$(echo "$total_memory + $memory_usage" | bc)
+
+    cpu_usage=$(top -b -n 1 -p $(pgrep -d, "$APP_NAME") | awk '/^ / {sum+=$9} END {print sum}')
+    echo "$total_cpu + $cpu_usage" | bc
+    total_cpu=$(echo "$total_cpu + $cpu_usage" | bc)
+
+    sleep "$SAMPLE_INTERVAL"
+
+done
+
+average_memory=$(echo "scale=2; $total_memory / $SAMPLES" | bc)
+average_cpu=$(echo "scale=2; $total_cpu / $SAMPLES" | bc)
+echo "Average memory usage: $average_memory.MB $average_cpu%"
