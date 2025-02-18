@@ -223,6 +223,7 @@ void drawFrame(
     // const VkDevice logicalDevice,const VkFence *inFlightFence
     const VkFence *vulkanFence = &((VkFence *) window->inFlightFences.items)[window->currentFrame];
     vkWaitForFences(app->logicalDevice, 1, vulkanFence, VK_TRUE, UINT64_MAX);
+    vkResetFences(app->logicalDevice, 1, vulkanFence);
 
     uint32_t imageIndex;
     VkResult acquireNextImageResult = vkAcquireNextImageKHR(
@@ -243,7 +244,7 @@ void drawFrame(
         exit(1);
     }
 
-    vkResetFences(app->logicalDevice, 1, vulkanFence);
+
 
     const VkCommandBuffer commandBuffer = ((VkCommandBuffer *) window->commandBuffers.items)[window->currentFrame];
     vkResetCommandBuffer(commandBuffer, 0);
