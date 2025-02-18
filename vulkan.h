@@ -624,7 +624,13 @@ void prepareVulkanApp(GLFWApp *app) {
         getCurrentVulkanWindow(*app)
     );
 
-    initCommandBuffers(((VkPhysicalDevice *)app->physicalDevices->items)[app->currentPhysicalDevice],app->logicalDevice, getCurrentVulkanWindow(*app), app->queueFamilyIndex);
+    initCommandBuffers(
+        ((VkPhysicalDevice *) app->physicalDevices->items)[app->currentPhysicalDevice],
+        app->logicalDevice,
+        getCurrentVulkanWindow(*app),
+        app->queueFamilyIndex,
+        app->graphicsQueue
+    );
 }
 
 // issue when pAllocator is passed. Even if it's null the code will throw a 139

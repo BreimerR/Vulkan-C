@@ -27,8 +27,10 @@ typedef struct VulkanWindow {
     uint32_t MAX_FRAMES_IN_FLIGHT;
     uint32_t currentFrame;
     VkBuffer vertexBuffer;
-    VkMemoryRequirements memRequirements;
     VkDeviceMemory vertexBufferMemory;
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    VkMemoryRequirements memRequirements;
     bool resized;
 } VulkanWindow;
 

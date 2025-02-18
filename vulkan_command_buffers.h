@@ -234,7 +234,8 @@ void drawFrame(
         VK_NULL_HANDLE,
         &imageIndex
     );
-    if (acquireNextImageResult == VK_ERROR_OUT_OF_DATE_KHR || acquireNextImageResult == VK_SUBOPTIMAL_KHR || window->resized) {
+    if (acquireNextImageResult == VK_ERROR_OUT_OF_DATE_KHR || acquireNextImageResult == VK_SUBOPTIMAL_KHR || window->
+        resized) {
         window->resized = false;
         printLn("Failed to acquire swap chain image!");
         recreateSwapChain(app);
@@ -243,7 +244,6 @@ void drawFrame(
         printLn("failed to acquire swap chain image!");
         exit(1);
     }
-
 
 
     const VkCommandBuffer commandBuffer = ((VkCommandBuffer *) window->commandBuffers.items)[window->currentFrame];
@@ -301,7 +301,13 @@ void drawFrame(
     window->currentFrame = (window->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void initCommandBuffers(const VkPhysicalDevice physicalDevice ,const VkDevice logicalDevice, VulkanWindow *window, const uint32_t queueFamilyIndex) {
+void initCommandBuffers(
+    const VkPhysicalDevice physicalDevice,
+    const VkDevice logicalDevice,
+    VulkanWindow *window,
+    const uint32_t queueFamilyIndex,
+    VkQueue graphicsQueue
+) {
     createCommandPool(logicalDevice, &(window->commandPool), queueFamilyIndex);
 
     Uint32SizedMutableArray vertices = {
@@ -314,7 +320,7 @@ void initCommandBuffers(const VkPhysicalDevice physicalDevice ,const VkDevice lo
         }
     };
 
-    createVertexBuffer(physicalDevice,logicalDevice,vertices, window);
+    createVertexBuffer(physicalDevice, logicalDevice, vertices, window, graphicsQueue);
     createCommandBuffers(logicalDevice, window);
     createSyncObjects(logicalDevice, window);
 

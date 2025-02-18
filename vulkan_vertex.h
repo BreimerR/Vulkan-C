@@ -70,49 +70,127 @@ uint32_t findMemoryType(
 }
 
 void createBuffer(
+    VkBuffer *vertexBuffer,
     const VkDeviceSize bufferSize,
+    VkDeviceMemory *vertexBufferMemory,
+    VkMemoryRequirements *memRequirements,
+    const VkBufferUsageFlags bufferUsage,
+    const VkMemoryPropertyFlags memoryProperties,
     const VkPhysicalDevice physicalDevice,
-    const VkDevice logicalDevice,
-    VulkanWindow *window
+    const VkDevice logicalDevice
 ) {
     VkBufferCreateInfo bufferInfo = {};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = bufferSize;
-    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.usage = bufferUsage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    if (vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &window->vertexBuffer) != VK_SUCCESS) {
+    if (vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, vertexBuffer) != VK_SUCCESS) {
         printLn("failed to create vertex buffer!");
         exit(4);
     }
-    vkGetBufferMemoryRequirements(logicalDevice, window->vertexBuffer, &window->memRequirements);
+    vkGetBufferMemoryRequirements(logicalDevice, *vertexBuffer, memRequirements);
     VkMemoryAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = window->memRequirements.size;
+    allocInfo.allocationSize = memRequirements->size;
     allocInfo.memoryTypeIndex = findMemoryType(
         physicalDevice,
-        window->memRequirements.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        memRequirements->memoryTypeBits,
+        memoryProperties
     );
 
-    if (vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &window->vertexBufferMemory) != VK_SUCCESS) {
+    // https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+    // memory limit is almost hit once you get to 4096 per vertex
+    if (vkAllocateMemory(logicalDevice, &allocInfo, nullptr, vertexBufferMemory) != VK_SUCCESS) {
         printLn("failed to allocate vertex buffer memory!");
         exit(1);
     }
 
-    vkBindBufferMemory(logicalDevice, window->vertexBuffer, window->vertexBufferMemory, 0);
+    vkBindBufferMemory(logicalDevice, *vertexBuffer, *vertexBufferMemory, 0);
+}
+
+void copyBuffer(
+    VkBuffer srcBuffer,
+    VkBuffer dstBuffer,
+    VkDeviceSize size,
+    VkCommandPool commandPool,
+    VkDevice logicalDevice,
+    VkQueue graphicsQueue
+) {
+    VkCommandBufferAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(logicalDevice, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    VkBufferCopy copyRegion = {};
+    copyRegion.srcOffset = 0; // Optional
+    copyRegion.dstOffset = 0; // Optional
+    copyRegion.size = size;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo  = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(graphicsQueue);
+
+    vkFreeCommandBuffers(logicalDevice, commandPool, 1, &commandBuffer);
 }
 
 void createVertexBuffer(
     const VkPhysicalDevice physicalDevice,
     const VkDevice logicalDevice,
     const Uint32SizedMutableArray vertices,
-    VulkanWindow *window
+    VulkanWindow *window,
+    VkQueue graphicsQueue
 ) {
-    createBuffer(vertices.size, physicalDevice, logicalDevice, window);
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+
+    createBuffer(
+        &stagingBuffer,
+        vertices.size,
+        &stagingBufferMemory,
+        &window->memRequirements,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        physicalDevice,
+        logicalDevice
+    );
 
     Any data;
-    vkMapMemory(logicalDevice, window->vertexBufferMemory, 0, vertices.size, 0, &data);
+    vkMapMemory(logicalDevice, stagingBufferMemory, 0, vertices.size, 0, &data);
     memcpy(data, vertices.items, vertices.size);
-    vkUnmapMemory(logicalDevice, window->vertexBufferMemory);
+    vkUnmapMemory(logicalDevice, stagingBufferMemory);
+
+    createBuffer(
+        &window->vertexBuffer,
+        vertices.size,
+        &window->vertexBufferMemory,
+        &window->memRequirements,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        physicalDevice,
+        logicalDevice
+    );
+
+    copyBuffer(stagingBuffer, window->vertexBuffer, vertices.size, window->commandPool, logicalDevice, graphicsQueue);
+
+    vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
+    vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
+
 }
 #endif //VULKAN_VERTEX_H
