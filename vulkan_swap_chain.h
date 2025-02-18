@@ -324,7 +324,6 @@ void prepareSwapChain(GLFWApp *app, VkSwapChainSupportDetails *swapChainSupportD
 void recreateSwapChain(GLFWApp *app) {
     VulkanWindow *vulkanWindow = getCurrentVulkanWindow(*app);
 
-
     int width = 0, height = 0;
     glfwGetFramebufferSize(vulkanWindow->window, &width, &height);
     while (width == 0 || height == 0) {
