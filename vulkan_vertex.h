@@ -69,15 +69,15 @@ uint32_t findMemoryType(
     exit(1);
 }
 
-void createVertexBuffer(
+void createBuffer(
+    const VkDeviceSize bufferSize,
     const VkPhysicalDevice physicalDevice,
     const VkDevice logicalDevice,
-    const Uint32SizedMutableArray vertices,
     VulkanWindow *window
 ) {
     VkBufferCreateInfo bufferInfo = {};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = vertices.size;
+    bufferInfo.size = bufferSize;
     bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     if (vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &window->vertexBuffer) != VK_SUCCESS) {
@@ -85,7 +85,6 @@ void createVertexBuffer(
         exit(4);
     }
     vkGetBufferMemoryRequirements(logicalDevice, window->vertexBuffer, &window->memRequirements);
-
     VkMemoryAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = window->memRequirements.size;
@@ -101,11 +100,19 @@ void createVertexBuffer(
     }
 
     vkBindBufferMemory(logicalDevice, window->vertexBuffer, window->vertexBufferMemory, 0);
+}
+
+void createVertexBuffer(
+    const VkPhysicalDevice physicalDevice,
+    const VkDevice logicalDevice,
+    const Uint32SizedMutableArray vertices,
+    VulkanWindow *window
+) {
+    createBuffer(vertices.size, physicalDevice, logicalDevice, window);
 
     Any data;
-    vkMapMemory(logicalDevice, window->vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-    memcpy(data, vertices.items,  bufferInfo.size);
+    vkMapMemory(logicalDevice, window->vertexBufferMemory, 0, vertices.size, 0, &data);
+    memcpy(data, vertices.items, vertices.size);
     vkUnmapMemory(logicalDevice, window->vertexBufferMemory);
-
 }
 #endif //VULKAN_VERTEX_H

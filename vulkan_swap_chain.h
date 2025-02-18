@@ -333,7 +333,6 @@ void recreateSwapChain(GLFWApp *app) {
 
     vkDeviceWaitIdle(app->logicalDevice);
 
-
     cleanUpSwapChain(app->logicalDevice, getCurrentVulkanWindow(*app));
     VkSwapChainSupportDetails swapChainSupportDetails = {
         .presentModes = {
