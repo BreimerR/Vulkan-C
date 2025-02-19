@@ -31,6 +31,8 @@ typedef struct VulkanWindow {
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
     VkMemoryRequirements memRequirements;
+    VkBuffer indexBuffer;
+    VkDeviceMemory indexBufferMemory;
     bool resized;
 } VulkanWindow;
 

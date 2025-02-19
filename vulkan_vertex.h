@@ -21,6 +21,10 @@ typedef struct Vertex {
     Vector3D color;
 } Vertex;
 
+typedef struct BufferVertices {
+    Uint32SizedMutableArray vertices; // Vertex
+    Uint32SizedMutableArray indices; // uint32_t
+} BufferVertices;
 
 void getBindingDescription(VkVertexInputBindingDescription *bindingDescription) {
     bindingDescription->binding = 0;
@@ -153,7 +157,7 @@ void copyBuffer(
 void createVertexBuffer(
     const VkPhysicalDevice physicalDevice,
     const VkDevice logicalDevice,
-    const Uint32SizedMutableArray vertices,
+     const BufferVertices bufferVertices,
     VulkanWindow *window,
     VkQueue graphicsQueue
 ) {
@@ -162,7 +166,7 @@ void createVertexBuffer(
 
     createBuffer(
         &stagingBuffer,
-        vertices.size,
+        bufferVertices.vertices.size,
         &stagingBufferMemory,
         &window->memRequirements,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -172,13 +176,13 @@ void createVertexBuffer(
     );
 
     Any data;
-    vkMapMemory(logicalDevice, stagingBufferMemory, 0, vertices.size, 0, &data);
-    memcpy(data, vertices.items, vertices.size);
+    vkMapMemory(logicalDevice, stagingBufferMemory, 0, bufferVertices.vertices.size, 0, &data);
+    memcpy(data, bufferVertices.vertices.items, bufferVertices.vertices.size);
     vkUnmapMemory(logicalDevice, stagingBufferMemory);
 
     createBuffer(
         &window->vertexBuffer,
-        vertices.size,
+        bufferVertices.vertices.size,
         &window->vertexBufferMemory,
         &window->memRequirements,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -187,7 +191,7 @@ void createVertexBuffer(
         logicalDevice
     );
 
-    copyBuffer(stagingBuffer, window->vertexBuffer, vertices.size, window->commandPool, logicalDevice, graphicsQueue);
+    copyBuffer(stagingBuffer, window->vertexBuffer, bufferVertices.vertices.size, window->commandPool, logicalDevice, graphicsQueue);
 
     vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
     vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);

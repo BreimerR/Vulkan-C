@@ -121,8 +121,14 @@ void cleanup(const GLFWApp app) {
             );
         }
 
+
+        vkDestroyBuffer(app.logicalDevice, vulkanWindow->indexBuffer, nullptr);
+        vkFreeMemory(app.logicalDevice,  vulkanWindow->indexBufferMemory, nullptr);
+
         vkFreeMemory(app.logicalDevice, vulkanWindow->vertexBufferMemory, nullptr);
         vkDestroyBuffer(app.logicalDevice, vulkanWindow->vertexBuffer, nullptr);
+
+
         glfwDestroyWindow(vulkanWindow->window);
     }
 

@@ -84,7 +84,7 @@ void vulkanSubmitRenderPass(const VulkanWindow *window, const uint32_t imageInde
     renderPassInfo.renderArea.offset = offset;
     renderPassInfo.renderArea.extent = window->extent;
 
-    const VkClearValue clearColor = {{{1.0f, 1.0f, 1.0f, 1.0f}}};
+    const VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 0.0f}}};
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = &clearColor;
 
@@ -109,17 +109,12 @@ void beginRenderPass(const VulkanWindow *window, const uint32_t imageIndex) {
     const VkBuffer vertexBuffers[] = {window->vertexBuffer};
     constexpr VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(commandBuffer, window->indexBuffer, 0, VK_INDEX_TYPE_UINT32); // this section needs to be the same as the index buffer index types
 
     vulkanCmdSetScissor(window);
     vulkanCmdSetViewport(window);
 
-    vkCmdDraw(
-        commandBuffer,
-        3,
-        1,
-        0,
-        0
-    );
+    vkCmdDrawIndexed(commandBuffer, 6, 1, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -301,6 +296,56 @@ void drawFrame(
     window->currentFrame = (window->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
+void createIndexBuffer(
+    VulkanWindow *window,
+    BufferVertices buffserVertices,
+    VkQueue graphicsQueue,
+    VkDevice logicalDevice,
+    VkPhysicalDevice physicalDevice
+) {
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+
+    createBuffer(
+        &stagingBuffer,
+        buffserVertices.indices.size,
+        &stagingBufferMemory,
+        &window->memRequirements,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        physicalDevice,
+        logicalDevice
+    );
+
+    Any data;
+    vkMapMemory(logicalDevice, stagingBufferMemory, 0, buffserVertices.indices.size, 0, &data);
+    memcpy(data, (uint32_t *) buffserVertices.indices.items, buffserVertices.indices.size);
+    vkUnmapMemory(logicalDevice, stagingBufferMemory);
+
+    createBuffer(
+        &window->indexBuffer,
+        buffserVertices.indices.size,
+        &window->indexBufferMemory,
+        &window->memRequirements,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        physicalDevice,
+        logicalDevice
+    );
+
+    copyBuffer(
+        stagingBuffer,
+        window->indexBuffer,
+        buffserVertices.indices.size,
+        window->commandPool,
+        logicalDevice,
+        graphicsQueue
+    );
+
+    vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
+    vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
+}
+
 void initCommandBuffers(
     const VkPhysicalDevice physicalDevice,
     const VkDevice logicalDevice,
@@ -310,17 +355,29 @@ void initCommandBuffers(
 ) {
     createCommandPool(logicalDevice, &(window->commandPool), queueFamilyIndex);
 
-    Uint32SizedMutableArray vertices = {
-        .count = 3,
-        .size = sizeof(Vertex) * 3,
-        .items = (Any *) (Vertex []){
-            {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-            {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-            {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    const BufferVertices bufferVertices = {
+        .vertices = {
+            .count = 4,
+            .size = sizeof(Vertex) * 4,
+            .items = (Any *) (Vertex []){
+                {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+                {{0.5f, 0.5f}, {0.0f, 0.0f, 0.0f}},
+                {{-0.5f, 0.5f}, {1.0f, 1.0f, 0.0f}}
+            }
+        },
+        .indices = {
+            .count = 6,
+            .size = sizeof(uint32_t) * 6,
+            .items = (Any *) (uint32_t []){
+                0, 1, 2, 2, 3, 0
+            }
         }
+
     };
 
-    createVertexBuffer(physicalDevice, logicalDevice, vertices, window, graphicsQueue);
+    createVertexBuffer(physicalDevice, logicalDevice, bufferVertices, window, graphicsQueue);
+    createIndexBuffer(window, bufferVertices, graphicsQueue, logicalDevice, physicalDevice);
     createCommandBuffers(logicalDevice, window);
     createSyncObjects(logicalDevice, window);
 
